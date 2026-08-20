@@ -189,8 +189,27 @@ class InactivityKick(commands.Cog):
     @dedupe_guard
     async def inactivity(self, ctx: commands.Context):
         """Manage inactivity kicking for this server."""
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help()
+        if ctx.invoked_subcommand is not None:
+            return
+        p = ctx.clean_prefix
+        embed = make_embed(
+            "InactivityKick",
+            "Manage inactivity kicking for this server.",
+            COLOR_INFO,
+            fields=[
+                ("Commands", (
+                    f"`{p}inactivity setdays <n>` — set days of silence before a kick\n"
+                    f"`{p}inactivity toggle` — turn auto-kicking on/off\n"
+                    f"`{p}inactivity exemptrole <role>` — exempt a role\n"
+                    f"`{p}inactivity unexemptrole <role>` — remove role exemption\n"
+                    f"`{p}inactivity whitelist <member>` — exempt a person\n"
+                    f"`{p}inactivity unwhitelist <member>` — remove person exemption\n"
+                    f"`{p}inactivity status` — show current settings\n"
+                    f"`{p}inactivity check` — dry run, list who'd be kicked"
+                ), False),
+            ],
+        )
+        await ctx.send(embed=embed)
 
     @inactivity.command(name="setdays")
     @dedupe_guard
