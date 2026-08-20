@@ -1,0 +1,9 @@
+{
+    "author": ["you"],
+    "min_bot_version": "3.5.0",
+    "description": "NadekoBot-style reaction currency events: react to a message to claim a share of a pot.",
+    "hidden": false,
+    "install_msg": "Thanks for installing ReactionEvents! Run `[p]eventstart reaction -a <amount> -p <pot> -d <hours>` to start one.",
+    "short": "Reaction-based currency giveaway events.",
+    "tags": ["economy", "currency", "events", "reaction"]
+}
