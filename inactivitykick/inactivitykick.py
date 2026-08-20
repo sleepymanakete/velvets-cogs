@@ -22,6 +22,7 @@ from redbot.core import commands, Config, checks
 from redbot.core.bot import Red
 from discord.ext import tasks
 from datetime import datetime, timezone, timedelta
+import time
 
 COLOR_OK = discord.Color.green()
 COLOR_INFO = discord.Color.blurple()
@@ -58,7 +59,23 @@ class InactivityKick(commands.Cog):
         self.config.register_guild(**default_guild)
         self.config.register_member(**default_member)
 
+        # Guards against duplicate command runs if Discord's gateway ever
+        # redelivers the same message after a connection resume (rare, but
+        # would otherwise cause every reply to fire twice for one command).
+        self._recent_message_ids = {}
+
         self.inactivity_check.start()
+
+    async def cog_check(self, ctx: commands.Context) -> bool:
+        now = time.monotonic()
+        # purge entries older than 10 seconds
+        self._recent_message_ids = {
+            mid: ts for mid, ts in self._recent_message_ids.items() if now - ts < 10
+        }
+        if ctx.message.id in self._recent_message_ids:
+            return False  # already handled this exact message once, skip
+        self._recent_message_ids[ctx.message.id] = now
+        return True
 
     def cog_unload(self):
         self.inactivity_check.cancel()
