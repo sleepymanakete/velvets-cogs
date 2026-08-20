@@ -74,24 +74,24 @@ class ReactionEvents(commands.Cog):
     # ---------- embed builder ----------
 
     def _build_event_embed(self, amount, pot_total, pot_remaining, end_time, emoji, ended, participant_count=0):
+        unix_end = int(end_time.timestamp())
         if ended:
             title = "🎉 Reaction Event Ended!"
             description = "This event is no longer accepting reactions."
             color = COLOR_WARN
-            time_left = "Ended"
+            time_value = f"Ended <t:{unix_end}:R>"
         else:
             title = "✨ REACTION EVENT STARTED! ✨"
             description = f"React to this message with {emoji} to claim your reward!"
             color = COLOR_OK
-            remaining_seconds = max(0, (end_time - datetime.now(timezone.utc)).total_seconds())
-            hours = int(remaining_seconds // 3600)
-            minutes = int((remaining_seconds % 3600) // 60)
-            time_left = f"{hours}h {minutes}m"
+            # Discord timestamps render in each viewer's own timezone and
+            # count down live client-side, no message edits needed.
+            time_value = f"<t:{unix_end}:R>\n<t:{unix_end}:f>"
 
         embed = discord.Embed(title=title, description=description, color=color)
         embed.add_field(name="💰 Reward", value=f"{amount} Currency", inline=True)
         embed.add_field(name="🏆 Remaining Pot", value=f"{pot_remaining} Currency", inline=True)
-        embed.add_field(name="⏳ Time Left", value=time_left, inline=True)
+        embed.add_field(name="⏳ Ends", value=time_value, inline=True)
         embed.add_field(name=f"{emoji} Claimed", value=str(participant_count), inline=False)
         embed.set_footer(text="ReactionEvents")
         return embed
@@ -204,8 +204,6 @@ class ReactionEvents(commands.Cog):
             return
         if payload.user_id in event["participants"]:
             return
-        if payload.user_id == event["starter_id"]:
-            return  # starter can't claim from their own pot
 
         remaining = event["pot_remaining"]
         amount = event["amount"]
