@@ -1,10 +1,10 @@
 """
 ReactionEvents - a Red-DiscordBot cog
 ---------------------------------------
-NadekoBot-style reaction currency events. An admin starts an event funding
-a pot from their own balance; members claim a fixed share by reacting to
-the announcement message, until the pot runs out or time expires. Any
-unclaimed pot is refunded to whoever started it.
+NadekoBot-style reaction currency events. An admin starts an event with a
+set pot; members claim a fixed share by reacting to the announcement
+message, until the pot runs out or time expires. The pot is minted for
+the event — it isn't deducted from the starter's own balance.
 
 Uses Red's built-in bank API, so it works with whatever economy setup
 you already have (global or per-server currency).
@@ -12,7 +12,7 @@ you already have (global or per-server currency).
 Commands (require Manage Server):
     [p]eventstart reaction -a <amount per user> -p <pot total> -d <duration hours>
     [p]eventstart emoji <emoji>      - set the claim emoji for this server
-    [p]eventend <message_id>         - end an active event early, refunding the rest
+    [p]eventend <message_id>         - end an active event early
 """
 
 import asyncio
@@ -129,18 +129,7 @@ class ReactionEvents(commands.Cog):
             await ctx.send(embed=make_embed("Invalid arguments", "Amount per user can't exceed the pot.", COLOR_ERROR))
             return
 
-        currency_name = await bank.get_currency_name(ctx.guild)
-
-        if not await bank.can_spend(ctx.author, pot):
-            await ctx.send(embed=make_embed(
-                "Insufficient funds",
-                f"You need **{pot} {currency_name}** to fund this event.",
-                COLOR_ERROR,
-            ))
-            return
-
-        await bank.withdraw_credits(ctx.author, pot)
-
+        # Pot is minted for the event, not deducted from the starter's balance.
         emoji = await self.config.guild(ctx.guild).emoji()
         end_time = datetime.now(timezone.utc) + timedelta(hours=duration)
 
@@ -181,7 +170,7 @@ class ReactionEvents(commands.Cog):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def eventend(self, ctx: commands.Context, message_id: int):
-        """End an active reaction event early, refunding whatever's left."""
+        """End an active reaction event early."""
         event = self.active_events.get(message_id)
         if event is None or event["guild_id"] != ctx.guild.id:
             await ctx.send(embed=make_embed("Not found", "No active event with that message ID.", COLOR_ERROR))
@@ -266,19 +255,8 @@ class ReactionEvents(commands.Cog):
             except discord.HTTPException:
                 pass
 
-        # Refund whatever's left in the pot back to whoever started it
-        leftover = event["pot_remaining"]
-        if leftover > 0 and guild:
-            starter = guild.get_member(event["starter_id"])
-            if starter:
-                await bank.deposit_credits(starter, leftover)
-                if channel:
-                    currency_name = await bank.get_currency_name(guild)
-                    await channel.send(embed=make_embed(
-                        "Pot refunded",
-                        f"💸 {leftover} unclaimed {currency_name} refunded to {starter.mention}.",
-                        COLOR_INFO,
-                    ))
+        # Any unclaimed pot simply expires — nothing to refund since it
+        # was minted for the event rather than taken from the starter.
 
         task = event.get("task")
         if task and not task.done():
