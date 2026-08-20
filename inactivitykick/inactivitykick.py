@@ -22,6 +22,7 @@ from redbot.core import commands, Config, checks
 from redbot.core.bot import Red
 from discord.ext import tasks
 from datetime import datetime, timezone, timedelta
+from functools import wraps
 import time
 
 COLOR_OK = discord.Color.green()
@@ -36,6 +37,25 @@ def make_embed(title, description="", color=COLOR_INFO, fields=None):
         embed.add_field(name=name, value=value, inline=inline)
     embed.set_footer(text="InactivityKick")
     return embed
+
+
+def dedupe_guard(func):
+    """Skip a command's actual execution if this exact Discord message already
+    triggered it once recently. This only wraps the real callback (runs after
+    all permission checks pass), so it never interferes with Red's internal
+    can_run()/help-filtering probes, which reuse the same message but aren't
+    real invocations."""
+    @wraps(func)
+    async def wrapper(self, ctx, *args, **kwargs):
+        now = time.monotonic()
+        self._recent_message_ids = {
+            mid: ts for mid, ts in self._recent_message_ids.items() if now - ts < 10
+        }
+        if ctx.message.id in self._recent_message_ids:
+            return
+        self._recent_message_ids[ctx.message.id] = now
+        return await func(self, ctx, *args, **kwargs)
+    return wrapper
 
 
 class InactivityKick(commands.Cog):
@@ -65,17 +85,6 @@ class InactivityKick(commands.Cog):
         self._recent_message_ids = {}
 
         self.inactivity_check.start()
-
-    async def cog_check(self, ctx: commands.Context) -> bool:
-        now = time.monotonic()
-        # purge entries older than 10 seconds
-        self._recent_message_ids = {
-            mid: ts for mid, ts in self._recent_message_ids.items() if now - ts < 10
-        }
-        if ctx.message.id in self._recent_message_ids:
-            return False  # already handled this exact message once, skip
-        self._recent_message_ids[ctx.message.id] = now
-        return True
 
     def cog_unload(self):
         self.inactivity_check.cancel()
@@ -177,12 +186,14 @@ class InactivityKick(commands.Cog):
     @commands.group(name="inactivity")
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
+    @dedupe_guard
     async def inactivity(self, ctx: commands.Context):
         """Manage inactivity kicking for this server."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
     @inactivity.command(name="setdays")
+    @dedupe_guard
     async def setdays(self, ctx: commands.Context, days: int):
         """Set how many days of silence before a kick."""
         if days < 1:
@@ -196,6 +207,7 @@ class InactivityKick(commands.Cog):
         ))
 
     @inactivity.command(name="toggle")
+    @dedupe_guard
     async def toggle(self, ctx: commands.Context):
         """Turn auto-kicking on or off."""
         current = await self.config.guild(ctx.guild).enabled()
@@ -208,6 +220,7 @@ class InactivityKick(commands.Cog):
         ))
 
     @inactivity.command(name="exemptrole")
+    @dedupe_guard
     async def exemptrole(self, ctx: commands.Context, role: discord.Role):
         """Exempt a role from inactivity kicks (e.g. mods)."""
         async with self.config.guild(ctx.guild).exempt_roles() as roles:
@@ -220,6 +233,7 @@ class InactivityKick(commands.Cog):
         ))
 
     @inactivity.command(name="unexemptrole")
+    @dedupe_guard
     async def unexemptrole(self, ctx: commands.Context, role: discord.Role):
         """Remove a role from the exempt list."""
         async with self.config.guild(ctx.guild).exempt_roles() as roles:
@@ -232,6 +246,7 @@ class InactivityKick(commands.Cog):
         ))
 
     @inactivity.command(name="whitelist")
+    @dedupe_guard
     async def whitelist(self, ctx: commands.Context, member: discord.Member):
         """Exempt a specific person, regardless of role."""
         async with self.config.guild(ctx.guild).whitelist() as wl:
@@ -244,6 +259,7 @@ class InactivityKick(commands.Cog):
         ))
 
     @inactivity.command(name="unwhitelist")
+    @dedupe_guard
     async def unwhitelist(self, ctx: commands.Context, member: discord.Member):
         """Remove a person from the whitelist."""
         async with self.config.guild(ctx.guild).whitelist() as wl:
@@ -256,6 +272,7 @@ class InactivityKick(commands.Cog):
         ))
 
     @inactivity.command(name="status")
+    @dedupe_guard
     async def status(self, ctx: commands.Context):
         """Show current inactivity-kick settings."""
         settings = await self.config.guild(ctx.guild).all()
@@ -277,6 +294,7 @@ class InactivityKick(commands.Cog):
         await ctx.send(embed=embed)
 
     @inactivity.command(name="check")
+    @dedupe_guard
     async def check(self, ctx: commands.Context):
         """Dry run: list who WOULD be kicked right now, without kicking anyone."""
         async with ctx.typing():
