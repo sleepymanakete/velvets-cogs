@@ -1,0 +1,9 @@
+{
+    "author": ["Claude"],
+    "min_bot_version": "3.5.0",
+    "description": "Lets server boosters create and customize their own personal role: name, color, and icon.",
+    "hidden": false,
+    "install_msg": "Thanks for installing BoosterRoles!\n\nEnable it with `[p]boosterrole admin toggle`, and optionally set an anchor role so new roles are positioned correctly with `[p]boosterrole admin anchor <role>`.",
+    "short": "Custom roles for server boosters.",
+    "tags": ["roles", "boost", "booster", "customization", "color"]
+}
