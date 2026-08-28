@@ -1,9 +1,9 @@
 {
     "author": ["you"],
     "min_bot_version": "3.5.0",
-    "description": "Kicks members who haven't sent a message in a configurable number of days.",
+    "description": "Kicks or quarantines members who haven't sent a message or reacted in a configurable number of days.",
     "hidden": false,
     "install_msg": "Thanks for installing InactivityKick! Run `[p]inactivity` to see setup commands.",
-    "short": "Kicks members inactive for N days.",
-    "tags": ["moderation", "kick", "inactivity"]
+    "short": "Kicks or quarantines inactive members.",
+    "tags": ["moderation", "kick", "inactivity", "quarantine"]
 }
