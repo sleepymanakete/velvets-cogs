@@ -36,11 +36,12 @@ COLOR_WARN = discord.Color.orange()
 COLOR_ERROR = discord.Color.red()
 
 
-def make_embed(title, description="", color=COLOR_INFO, fields=None):
+def make_embed(title, description="", color=COLOR_INFO, fields=None, footer=True):
     embed = discord.Embed(title=title, description=description, color=color)
     for name, value, inline in (fields or []):
         embed.add_field(name=name, value=value, inline=inline)
-    embed.set_footer(text="InactivityKick")
+    if footer:
+        embed.set_footer(text="InactivityKick")
     return embed
 
 
@@ -301,14 +302,13 @@ class InactivityKick(commands.Cog):
         explainer message in that channel (once), rather than a new message
         each time someone is quarantined."""
         await self.config.guild(ctx.guild).holding_channel.set(channel.id)
-        days = await self.config.guild(ctx.guild).days()
 
         try:
             await channel.send(embed=make_embed(
-                "You've been moved here for inactivity",
+                "You've been marked as inactive",
                 (
                     f"You haven't posted anywhere in the server for "
-                    f"**{days}+ days**, so you've been moved here to keep "
+                    f"**X+ days**, so you've been moved here to keep "
                     f"things tidy for active members. This channel is the only thing "
                     f"you can see right now.\n\n"
                     f"**Are my roles gone?**\n"
@@ -319,6 +319,7 @@ class InactivityKick(commands.Cog):
                     f"*This process is fully automatic.*"
                 ),
                 COLOR_WARN,
+                footer=False,
             ), allowed_mentions=discord.AllowedMentions.none())
         except discord.Forbidden:
             await ctx.send(embed=make_embed(
@@ -464,6 +465,41 @@ class InactivityKick(commands.Cog):
             description,
             COLOR_WARN,
             fields=[("Threshold", f"{settings['days']} days", True)],
+        )
+        await ctx.send(embed=embed)
+
+    @inactivity.command(name="audit")
+    async def audit(self, ctx: commands.Context):
+        """Show every member's actual tracked last-seen date, oldest first.
+        Useful for verifying the underlying data behind `check`/`runnow`."""
+        async with ctx.typing():
+            rows = []
+            for member in ctx.guild.members:
+                if member.bot:
+                    continue
+                raw_ts = await self.config.member(member).last_seen()
+                last_seen = await self._get_last_seen(ctx.guild, member)
+                rows.append((member, last_seen, raw_ts is not None))
+
+        rows.sort(key=lambda r: r[1])
+
+        lines = []
+        for member, last_seen, has_real_data in rows[:25]:
+            tag = "" if has_real_data else " — *no message seen yet, using fallback*"
+            lines.append(f"{member.display_name}: {last_seen.strftime('%Y-%m-%d %H:%M UTC')}{tag}")
+        description = "\n".join(lines) if lines else "No members found."
+        if len(rows) > 25:
+            description += f"\n\n...and {len(rows) - 25} more."
+
+        untracked = sum(1 for _, _, real in rows if not real)
+        embed = make_embed(
+            "Activity Audit",
+            description,
+            COLOR_INFO,
+            fields=[
+                ("Total members", str(len(rows)), True),
+                ("Never seen posting", str(untracked), True),
+            ],
         )
         await ctx.send(embed=embed)
 
