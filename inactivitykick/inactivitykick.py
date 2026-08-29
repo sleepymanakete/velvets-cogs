@@ -22,6 +22,9 @@ Commands (all under the `inactivity` group, require Manage Server):
     [p]inactivity unwhitelist <member>
     [p]inactivity status
     [p]inactivity check
+    [p]inactivity audit
+    [p]inactivity forceinactive <member>       (testing helper)
+    [p]inactivity runnow
 """
 
 import discord
@@ -128,6 +131,11 @@ class InactivityKick(commands.Cog):
             return
 
         await self.config.member(member).stored_roles.set(None)
+
+        try:
+            await message.delete()
+        except (discord.Forbidden, discord.NotFound):
+            pass
 
     # ---------- helpers ----------
 
@@ -467,6 +475,21 @@ class InactivityKick(commands.Cog):
             fields=[("Threshold", f"{settings['days']} days", True)],
         )
         await ctx.send(embed=embed)
+
+    @inactivity.command(name="forceinactive")
+    async def forceinactive(self, ctx: commands.Context, member: discord.Member):
+        """Testing helper: backdates a member's last-seen timestamp so they
+        immediately qualify as inactive under the current threshold, without
+        waiting real days. Follow with `check` or `runnow` to test."""
+        settings = await self.config.guild(ctx.guild).all()
+        fake_last_seen = datetime.now(timezone.utc) - timedelta(days=settings["days"] + 1)
+        await self.config.member(member).last_seen.set(fake_last_seen.isoformat())
+        await ctx.send(embed=make_embed(
+            "Backdated for testing",
+            f"{member.display_name}'s last-seen was set to {fake_last_seen.strftime('%Y-%m-%d')}, "
+            f"past the current {settings['days']}-day threshold. Run `check` or `runnow` to test.",
+            COLOR_WARN,
+        ))
 
     @inactivity.command(name="audit")
     async def audit(self, ctx: commands.Context):
