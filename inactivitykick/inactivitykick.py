@@ -14,6 +14,7 @@ Commands (all under the `inactivity` group, require Manage Server):
     [p]inactivity check
     [p]inactivity audit
     [p]inactivity forceinactive <member>       (testing helper)
+    [p]inactivity previewkick                  (DMs you a sample kick message)
     [p]inactivity runnow
 """
 
@@ -353,6 +354,40 @@ class InactivityKick(commands.Cog):
             ],
         )
         await ctx.send(embed=embed)
+
+    @inactivity.command(name="previewkick")
+    async def previewkick(self, ctx: commands.Context):
+        """DMs you a preview of the kick message, exactly as a real member
+        would see it, without kicking anyone."""
+        settings = await self.config.guild(ctx.guild).all()
+        last_seen = await self._get_last_seen(ctx.guild, ctx.author)
+        unix_last_seen = int(last_seen.timestamp())
+
+        preview_embed = make_embed(
+            f"Removed from {ctx.guild.name}",
+            f"You were kicked for inactivity — you haven't posted since "
+            f"<t:{unix_last_seen}:R> (<t:{unix_last_seen}:f>). Feel free to rejoin anytime!",
+            COLOR_WARN,
+        )
+
+        try:
+            await ctx.author.send(
+                content="👀 This is a **preview only** — you were not kicked.",
+                embed=preview_embed,
+            )
+        except discord.Forbidden:
+            await ctx.send(embed=make_embed(
+                "Couldn't DM you",
+                "I can't send you a DM — check that you allow DMs from server members.",
+                COLOR_ERROR,
+            ))
+            return
+
+        await ctx.send(embed=make_embed(
+            "Preview sent",
+            "Check your DMs — sent a preview of the kick message using your own last-seen date.",
+            COLOR_OK,
+        ))
 
     @inactivity.command(name="runnow")
     async def runnow(self, ctx: commands.Context):
