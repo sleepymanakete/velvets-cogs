@@ -143,8 +143,8 @@ class InactivityKick(commands.Cog):
                 unix_last_seen = int(last_seen.timestamp())
                 dm_embed = make_embed(
                     f"Removed from {guild.name}",
-                    f"You were kicked for inactivity — you haven't posted since "
-                    f"<t:{unix_last_seen}:R> (<t:{unix_last_seen}:f>). Feel free to rejoin anytime!",
+                    f"You were kicked for inactivity. You haven't posted since "
+                    f"<t:{unix_last_seen}:R> (<t:{unix_last_seen}:f>).",
                     COLOR_WARN,
                 )
                 await member.send(embed=dm_embed)
@@ -365,8 +365,8 @@ class InactivityKick(commands.Cog):
 
         preview_embed = make_embed(
             f"Removed from {ctx.guild.name}",
-            f"You were kicked for inactivity — you haven't posted since "
-            f"<t:{unix_last_seen}:R> (<t:{unix_last_seen}:f>). Feel free to rejoin anytime!",
+            f"You were kicked for inactivity. You haven't posted since "
+            f"<t:{unix_last_seen}:R> (<t:{unix_last_seen}:f>).",
             COLOR_WARN,
         )
 
