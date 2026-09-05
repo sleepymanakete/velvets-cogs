@@ -34,8 +34,10 @@ def make_embed(title, description="", color=COLOR_INFO, fields=None, footer=True
     embed = discord.Embed(title=title, description=description, color=color)
     for name, value, inline in (fields or []):
         embed.add_field(name=name, value=value, inline=inline)
-    if footer:
+    if footer is True:
         embed.set_footer(text="InactivityKick")
+    elif isinstance(footer, str):
+        embed.set_footer(text=footer)
     return embed
 
 
@@ -146,6 +148,7 @@ class InactivityKick(commands.Cog):
                     f"You were kicked for inactivity. You haven't posted since "
                     f"<t:{unix_last_seen}:R> (<t:{unix_last_seen}:f>).",
                     COLOR_WARN,
+                    footer="This process is automated",
                 )
                 await member.send(embed=dm_embed)
             except discord.Forbidden:
@@ -368,6 +371,7 @@ class InactivityKick(commands.Cog):
             f"You were kicked for inactivity. You haven't posted since "
             f"<t:{unix_last_seen}:R> (<t:{unix_last_seen}:f>).",
             COLOR_WARN,
+            footer="This process is automated",
         )
 
         try:
