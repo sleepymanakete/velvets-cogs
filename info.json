@@ -1,0 +1,12 @@
+{
+    "author": ["you"],
+    "min_bot_version": "3.5.0",
+    "description": "Randomly spawns claimable currency chests in chat, with a button to claim, a limited number of claimers per chest, and full admin configuration via [p]currencysettings.",
+    "short": "Random claimable currency chest drops.",
+    "install_msg": "Thanks for installing ChestDrop! Enable it and set a channel with `[p]currencysettings toggle` and `[p]currencysettings channel #channel add`.",
+    "tags": ["economy", "currency", "fun", "chest", "drops"],
+    "requirements": [],
+    "hidden": false,
+    "disabled": false,
+    "type": "COG"
+}
