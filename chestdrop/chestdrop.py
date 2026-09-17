@@ -4,7 +4,7 @@ import time
 from typing import Optional
 
 import discord
-from redbot.core import Config, commands, checks
+from redbot.core import Config, bank, commands, checks
 from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import box, humanize_number, humanize_timedelta
 
@@ -17,14 +17,9 @@ DEFAULT_GUILD = {
     "max_reward": 666,
     "max_claims": 3,
     "expires_after": 300,  # seconds the chest stays open
-    "currency_name": "Popsicle",
-    "currency_emoji": "\U0001FAD0",  # 🪐 placeholder-ish, replaced below
+    "currency_emoji": "\U0001F4B0",  # 💰 shown next to reward amounts (display only)
     "chest_emoji": "\U0001F381",  # 🎁
     "last_spawn": 0,
-}
-
-DEFAULT_MEMBER = {
-    "balance": 0,
 }
 
 
@@ -51,7 +46,6 @@ class ChestDrop(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=0xC4E57D20, force_registration=True)
         self.config.register_guild(**DEFAULT_GUILD)
-        self.config.register_member(**DEFAULT_MEMBER)
 
         # active chests: message_id -> state dict
         self._active_chests = {}
@@ -93,7 +87,7 @@ class ChestDrop(commands.Cog):
     # ---------------------------------------------------------------- #
 
     async def spawn_chest(self, channel: discord.TextChannel, settings: dict):
-        currency = settings["currency_name"]
+        currency = await bank.get_currency_name(channel.guild)
         c_emoji = settings["currency_emoji"]
         chest_emoji = settings["chest_emoji"]
         max_claims = settings["max_claims"]
@@ -179,11 +173,18 @@ class ChestDrop(commands.Cog):
                 return
 
             amount = random.randint(state["min_reward"], state["max_reward"])
-            state["claims"].append((interaction.user.id, amount))
 
-            member_conf = self.config.member(interaction.user)
-            current = await member_conf.balance()
-            await member_conf.balance.set(current + amount)
+            try:
+                await bank.deposit_credits(interaction.user, amount)
+            except (ValueError, RuntimeError) as e:
+                # ValueError: would exceed the bank's max balance for this user
+                # RuntimeError: bank operations disabled for this user/context
+                await interaction.response.send_message(
+                    f"Couldn't deposit your reward: {e}", ephemeral=True
+                )
+                return
+
+            state["claims"].append((interaction.user.id, amount))
 
             await interaction.response.send_message(
                 f"You claimed {state['currency_emoji']} **{humanize_number(amount)} "
@@ -238,21 +239,9 @@ class ChestDrop(commands.Cog):
         self._active_chests.pop(message.id, None)
         self._locks.pop(message.id, None)
 
-    # ---------------------------------------------------------------- #
-    # Balance command
-    # ---------------------------------------------------------------- #
-
-    @commands.guild_only()
-    @commands.command()
-    async def balance(self, ctx: commands.Context, member: Optional[discord.Member] = None):
-        """Check your (or someone else's) chest-currency balance."""
-        member = member or ctx.author
-        settings = await self.config.guild(ctx.guild).all()
-        bal = await self.config.member(member).balance()
-        await ctx.send(
-            f"{member.display_name} has {settings['currency_emoji']} "
-            f"**{humanize_number(bal)} {settings['currency_name']}**."
-        )
+    # Balances now go through Red's core Economy/bank system directly —
+    # use the bot's own `[p]balance` command, this cog no longer tracks
+    # a separate currency of its own.
 
     # ---------------------------------------------------------------- #
     # Admin configuration
@@ -344,12 +333,6 @@ class ChestDrop(commands.Cog):
         await self.config.guild(ctx.guild).expires_after.set(seconds)
         await ctx.send(f"Chests will now stay open for **{humanize_timedelta(seconds=seconds)}**.")
 
-    @currencysettings.command(name="currencyname")
-    async def cs_currencyname(self, ctx: commands.Context, *, name: str):
-        """Set the name of the currency chests award (e.g. 'Popsicle')."""
-        await self.config.guild(ctx.guild).currency_name.set(name)
-        await ctx.send(f"Currency name set to **{name}**.")
-
     @currencysettings.command(name="currencyemoji")
     async def cs_currencyemoji(self, ctx: commands.Context, emoji: str):
         """Set the emoji used to represent the currency."""
@@ -366,6 +349,7 @@ class ChestDrop(commands.Cog):
     async def cs_settings(self, ctx: commands.Context):
         """Show the current chest-drop configuration for this server."""
         s = await self.config.guild(ctx.guild).all()
+        currency_name = await bank.get_currency_name(ctx.guild)
         channels = ", ".join(f"<#{c}>" for c in s["channels"]) or "none"
         msg = (
             f"Enabled: {s['enabled']}\n"
@@ -375,7 +359,7 @@ class ChestDrop(commands.Cog):
             f"Reward range: {s['min_reward']}-{s['max_reward']}\n"
             f"Max claims per chest: {s['max_claims']}\n"
             f"Expiry: {humanize_timedelta(seconds=s['expires_after'])}\n"
-            f"Currency: {s['currency_emoji']} {s['currency_name']}\n"
+            f"Currency: {s['currency_emoji']} {currency_name} (managed by Red's bank/Economy)\n"
             f"Chest emoji: {s['chest_emoji']}"
         )
         await ctx.send(box(msg, lang="yaml"))
