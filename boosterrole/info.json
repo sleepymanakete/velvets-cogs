@@ -1,0 +1,11 @@
+{
+  "author": ["you"],
+  "name": "BoosterRoles",
+  "short": "Let server boosters make their own role, color and icon.",
+  "description": "Boosters can create a custom role, change its name/color/icon via slash or prefix commands. Roles are deleted automatically when the member stops boosting or leaves.",
+  "install_msg": "Run `[p]slash enablecog BoosterRoles` then `[p]slash sync` to enable slash commands. Set `[p]boosterroleset anchor <role>` so colors show.",
+  "min_bot_version": "3.5.0",
+  "end_user_data_statement": "Stores only Discord role IDs linked to member IDs.",
+  "tags": ["boosters", "roles"],
+  "type": "COG"
+}
