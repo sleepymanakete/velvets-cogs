@@ -1,9 +1,0 @@
-{
-  "author": ["YourName"],
-  "name": "BoosterRole",
-  "short": "Allows server boosters to create and customize their own role.",
-  "description": "Allows server boosters to create, recolor, rename, and set an icon for their custom role. Automatically deletes the role if they stop boosting.",
-  "tags": ["booster", "roles", "custom-roles", "boosts"],
-  "min_bot_version": "3.5.0",
-  "end_user_data_statement": "This cog stores Discord user and guild IDs in bot Config to track booster role assignments."
-}
